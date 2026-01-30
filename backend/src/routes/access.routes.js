@@ -1,14 +1,17 @@
-const express = require('express');
-const router = express.Router();
-const doctorController = require('../controllers/doctor.controller');
+const router = require('express').Router();
+const controller = require('../controllers/access.controller');
+const { validate } = require('../../utils/validation');
 
-// Register doctor
-router.post('/register', doctorController.registerDoctor);
+// Grant access to a doctor
+router.post('/grant', validate('grantAccess'), controller.grantAccess);
 
-// Verify doctor (HealthRegistryMSP only)
-router.post('/verify/:doctorID', doctorController.verifyDoctor);
+// Revoke access
+router.delete('/:accessKey', controller.revokeAccess);
 
-// Get doctor details
-router.get('/:doctorID', doctorController.getDoctor);
+// Check access validity
+router.get('/:accessKey/validity', controller.checkAccessValidity);
+
+// Get active accesses for a patient
+router.get('/patient/:patientID', controller.getActiveAccesses);
 
 module.exports = router;

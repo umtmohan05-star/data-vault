@@ -1,11 +1,26 @@
-const connectToGateway = require('./gateway');
+const FabricGateway = require('./gateway');
+
+// Singleton instance
+let gatewayInstance = null;
 
 async function getContract(identity = 'admin') {
-  const gateway = await connectToGateway(identity);
-  const network = await gateway.getNetwork('healthdata-channel');
-  const contract = network.getContract('healthcare');
-
-  return { contract, gateway };
+    if (!gatewayInstance) {
+        gatewayInstance = new FabricGateway();
+        await gatewayInstance.connect(identity);
+    }
+    
+    return {
+        contract: gatewayInstance.getContract(),
+        network: gatewayInstance.getNetwork(),
+        gateway: gatewayInstance
+    };
 }
 
-module.exports = { getContract };
+async function disconnectGateway() {
+    if (gatewayInstance) {
+        await gatewayInstance.disconnect();
+        gatewayInstance = null;
+    }
+}
+
+module.exports = { getContract, disconnectGateway };

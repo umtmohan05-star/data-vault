@@ -1,12 +1,15 @@
 {
-  "name": "backend",
+  "name": "healthcare-blockchain-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "REST API for Healthcare Blockchain Network",
+  "main": "src/app.js",
   "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "enroll": "node scripts/enrollAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["blockchain", "hyperledger-fabric", "healthcare", "rest-api"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -16,6 +19,11 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "fabric-ca-client": "^2.2.20",
-    "fabric-network": "^2.2.20"
+    "fabric-network": "^2.2.20",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
 }
