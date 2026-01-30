@@ -491,45 +491,45 @@ function createChannel() {
     sleep 15
 
     # Join peers - Hospital Apollo
-    infoln "📝 Step 5: Joining peer0.politicalparty..."
+    infoln "📝 Step 5: Joining peer0.hospitalapollo..."
     setGlobals "HospitalApollo" 0
     set -x
     peer channel join -b ./channel-artifacts/${CHANNEL_NAME}.block 2>&1
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-        fatalln "Failed to join peer0.politicalparty"
+        fatalln "Failed to join peer0.hospitalapollo"
     fi
 
-    infoln "📝 Step 6: Joining peer1.politicalparty..."
+    infoln "📝 Step 6: Joining peer1.hospitalapollo..."
     setGlobals "HospitalApollo" 1
     set -x
     peer channel join -b ./channel-artifacts/${CHANNEL_NAME}.block 2>&1
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-        fatalln "Failed to join peer1.politicalparty"
+        fatalln "Failed to join peer1.hospitalapollo"
     fi
 
     # Join peers - Audit Org
-    infoln "📝 Step 7: Joining peer0.auditauthority..."
+    infoln "📝 Step 7: Joining peer0.auditorg..."
     setGlobals "AuditOrg" 0
     set -x
     peer channel join -b ./channel-artifacts/${CHANNEL_NAME}.block 2>&1
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-        fatalln "Failed to join peer0.auditauthority"
+        fatalln "Failed to join peer0.auditorg"
     fi
 
-    infoln "📝 Step 8: Joining peer1.auditauthority..."
+    infoln "📝 Step 8: Joining peer1.auditorg..."
     setGlobals "AuditOrg" 1
     set -x
     peer channel join -b ./channel-artifacts/${CHANNEL_NAME}.block 2>&1
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-        fatalln "Failed to join peer1.auditauthority"
+        fatalln "Failed to join peer1.auditorg"
     fi
 
     infoln "🎉🎉🎉 CHANNEL CREATED WITH SMARTBFT! 🎉🎉🎉"
@@ -874,8 +874,8 @@ EOF
         
         infoln "✅ External chaincode package created!"
         
-        # Install on peer0.politicalparty
-        infoln "📥 Installing chaincode on peer0.politicalparty..."
+        # Install on peer0.hospitalapollo
+        infoln "📥 Installing chaincode on peer0.hospitalapollo..."
         
         peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz 2>&1 | tee ${NETWORK_DIR}/chaincode_installed.txt
         PACKAGE_ID=$(grep "${CHAINCODE_NAME}_${CHAINCODE_VERSION}" ${NETWORK_DIR}/chaincode_installed.txt | sed -n 's/.*identifier: \([^ ]*\).*/\1/p' | head -1)
@@ -947,22 +947,22 @@ EOF
     infoln "📌 Package ID synchronized!"
     
     # Install on remaining peers
-    infoln "📥 Installing on peer1.politicalparty..."
+    infoln "📥 Installing on peer1.hospitalapollo..."
     export CORE_PEER_ADDRESS=peer1.hospitalapollo.healthcare.com:8051
     export CORE_PEER_TLS_ROOTCERT_FILE=${NETWORK_DIR}/../compose/organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/tls/ca.crt
-    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer1.politicalparty" || warnln "⚠️  peer1.politicalparty skipped"
+    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer1.hospitalapollo" || warnln "⚠️  peer1.hospitalapollo skipped"
     
-    infoln "📥 Installing on peer0.auditauthority..."
+    infoln "📥 Installing on peer0.auditorg..."
     export CORE_PEER_LOCALMSPID="AuditOrgMSP"
     export CORE_PEER_ADDRESS=peer0.auditorg.healthcare.com:9051
     export CORE_PEER_TLS_ROOTCERT_FILE=${NETWORK_DIR}/../compose/organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/tls/ca.crt
     export CORE_PEER_MSPCONFIGPATH=${NETWORK_DIR}/../compose/organizations/peerOrganizations/auditorg.healthcare.com/users/Admin@auditorg.healthcare.com/msp
-    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer0.auditauthority" || warnln "⚠️  peer0.auditauthority skipped"
+    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer0.auditorg" || warnln "⚠️  peer0.auditorg skipped"
     
-    infoln "📥 Installing on peer1.auditauthority..."
+    infoln "📥 Installing on peer1.auditorg..."
     export CORE_PEER_ADDRESS=peer1.auditorg.healthcare.com:10051
     export CORE_PEER_TLS_ROOTCERT_FILE=${NETWORK_DIR}/../compose/organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/tls/ca.crt
-    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer1.auditauthority" || warnln "⚠️  peer1.auditauthority skipped"
+    peer lifecycle chaincode install ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz >/dev/null 2>&1 && infoln "✅ Installed on peer1.auditorg" || warnln "⚠️  peer1.auditorg skipped"
     
     rm -f ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz
     
