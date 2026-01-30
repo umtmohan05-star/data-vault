@@ -1,1 +1,4 @@
 *.backup
+Blockchain/bin
+Blockchain/compose/organizations
+Blockchain/organizations/fabric-ca

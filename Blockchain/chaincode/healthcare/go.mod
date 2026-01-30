@@ -2,6 +2,8 @@ module healthcare-contract
 
 go 1.24.0
 
+toolchain go1.24.12
+
 require github.com/hyperledger/fabric-contract-api-go v1.2.2
 
 require (
