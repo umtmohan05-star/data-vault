@@ -868,7 +868,7 @@ EOF
         infoln "📦 Packaging chaincode..."
         cd "$PKG_DIR"
         tar czf code.tar.gz connection.json
-        tar czf ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz code.tar.gz metadata.json
+        tar czf ${NETWORK_DIR}/${CHAINCODE_NAME}.tar.gz metadata.json code.tar.gz
         cd "$NETWORK_DIR"
         rm -rf "$PKG_DIR"
         
@@ -1039,7 +1039,7 @@ EOF
 function startRedis() {
   infoln "Starting Redis cache..."
   
-  docker-compose -f ../compose/${COMPOSE_FILE_NETWORK} up -d redis.healthcare.com 2>&1
+  docker-compose -f ../compose/healthcare-compose-network.yaml up -d redis.healthcare.com 2>&1
   
   # Wait for Redis to be ready
   local retries=0
@@ -1055,7 +1055,7 @@ function startRedis() {
     sleep 1
   done
   
-  successln "Redis is ready!"
+  infoln "Redis is ready!"
 }
 
 
