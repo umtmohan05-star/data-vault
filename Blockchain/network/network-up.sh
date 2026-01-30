@@ -933,7 +933,7 @@ EOF
         -e CORE_CHAINCODE_LOGGING_LEVEL=info \
         -w /chaincode \
         compose-healthcare-chaincode:latest \
-        ./healthcare-chaincode
+        /healthcare-chaincode
     
     sleep 5
     
