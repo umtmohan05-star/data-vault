@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+METADIR=$2
+BUILD_OUTPUT_DIR=$3
+cp "$METADIR/connection.json" "$BUILD_OUTPUT_DIR/connection.json"
+if [ -d "$METADIR/metadata" ]; then
+    cp -a "$METADIR/metadata" "$BUILD_OUTPUT_DIR/"
+fi
+exit 0

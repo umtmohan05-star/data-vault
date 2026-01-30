@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+METADIR=$2
+if [ -f "$METADIR/connection.json" ]; then
+    exit 0
+fi
+exit 1
