@@ -1,31 +1,11 @@
-{
-  "collections": [
-    {
-      "name": "patientPrivateData",
-      "policy": "OR('HospitalApolloMSP.member', 'AuditOrgMSP.member')",
-      "requiredPeerCount": 1,
-      "maxPeerCount": 2,
-      "blockToLive": 0,
-      "memberOnlyRead": true,
-      "memberOnlyWrite": true
-    },
-    {
-      "name": "accessRecordsPrivate",
-      "policy": "OR('HospitalApolloMSP.member', 'AuditOrgMSP.member')",
-      "requiredPeerCount": 1,
-      "maxPeerCount": 2,
-      "blockToLive": 0,
-      "memberOnlyRead": true,
-      "memberOnlyWrite": false
-    },
-    {
-      "name": "auditLogPrivate",
-      "policy": "OR('HospitalApolloMSP.member', 'AuditOrgMSP.member', 'HealthRegistryMSP.member')",
-      "requiredPeerCount": 1,
-      "maxPeerCount": 3,
-      "blockToLive": 0,
-      "memberOnlyRead": true,
-      "memberOnlyWrite": false
-    }
-  ]
-}
+[
+  {
+    "name": "patientPrivateData",
+    "policy": "OR('HospitalApolloMSP.member', 'AuditOrgMSP.member')",
+    "requiredPeerCount": 1,
+    "maxPeerCount": 2,
+    "blockToLive": 0,
+    "memberOnlyRead": true,
+    "memberOnlyWrite": true
+  }
+]

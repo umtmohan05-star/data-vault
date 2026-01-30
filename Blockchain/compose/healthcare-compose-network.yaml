@@ -61,7 +61,7 @@ services:
     working_dir: /chaincode
     environment:
       - CHAINCODE_SERVER_ADDRESS=0.0.0.0:7052
-      - CORE_CHAINCODE_ID_NAME=healthcare-contract_1.0:f254d60882aadecc13fbf31c0e3d2a5a473476a708e2cf9e5df14b41554a7617
+      - CORE_CHAINCODE_ID_NAME=healthcare-contract_1.0:266ef4161b2b470e7dc770885e2a2d2294755b2e343eba15a02e9d4101b8f614
       - CORE_CHAINCODE_LOGGING_LEVEL=info
     ports:
       - "7052:7052"
@@ -278,7 +278,7 @@ services:
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_CHAINCODE_MODE=net
       - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
-      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/opt/hyperledger/ccaas_builder","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0hospitalapollo"}
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
@@ -287,7 +287,7 @@ services:
     volumes:
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../chaincode/external-builder:/builders/external:ro
+      - ../builders/ccaas:/opt/hyperledger/ccaas_builder:ro
       - peer0.hospitalapollo.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
     working_dir: /root
@@ -330,7 +330,7 @@ services:
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_CHAINCODE_MODE=net
       - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
-      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/opt/hyperledger/ccaas_builder","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1hospitalapollo"}
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
@@ -339,7 +339,7 @@ services:
     volumes:
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../chaincode/external-builder:/builders/external:ro
+      - ../builders/ccaas:/opt/hyperledger/ccaas_builder:ro
       - peer1.hospitalapollo.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
     working_dir: /root
@@ -382,7 +382,7 @@ services:
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_CHAINCODE_MODE=net
       - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
-      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/opt/hyperledger/ccaas_builder","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0auditorg"}
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
@@ -391,7 +391,7 @@ services:
     volumes:
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../chaincode/external-builder:/builders/external:ro
+      - ../builders/ccaas:/opt/hyperledger/ccaas_builder:ro
       - peer0.auditorg.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
     working_dir: /root
@@ -434,7 +434,7 @@ services:
       - CORE_CHAINCODE_EXECUTETIMEOUT=300s
       - CORE_CHAINCODE_MODE=net
       - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
-      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/opt/hyperledger/ccaas_builder","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
       - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1auditorg"}
       - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
       - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
@@ -443,7 +443,7 @@ services:
     volumes:
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../chaincode/external-builder:/builders/external:ro
+      - ../builders/ccaas:/opt/hyperledger/ccaas_builder:ro
       - peer1.auditorg.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
     working_dir: /root
