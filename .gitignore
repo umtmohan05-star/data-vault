@@ -11,3 +11,4 @@ Blockchain/network/channel-artifacts/
 # BACKEND
 backend/node_modules
 backend/.env
+backend/wallet

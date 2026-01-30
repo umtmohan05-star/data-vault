@@ -89,8 +89,8 @@
   },
   "certificateAuthorities": {
     "ca.hospitalapollo.healthcare.com": {
-      "url": "https://localhost:7054",
-      "caName": "ca-hospitalapollo",
+      "url": "https://localhost:8054",
+      "caName": "ca-hospital-apollo",
       "tlsCACerts": {
         "path": "../Blockchain/compose/organizations/peerOrganizations/hospitalapollo.healthcare.com/ca/ca.hospitalapollo.healthcare.com-cert.pem"
       },
@@ -100,7 +100,7 @@
     },
     "ca.auditorg.healthcare.com": {
       "url": "https://localhost:9054",
-      "caName": "ca-auditorg",
+      "caName": "ca-audit-org",
       "tlsCACerts": {
         "path": "../Blockchain/compose/organizations/peerOrganizations/auditorg.healthcare.com/ca/ca.auditorg.healthcare.com-cert.pem"
       },
