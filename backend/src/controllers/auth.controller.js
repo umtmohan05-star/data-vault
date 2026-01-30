@@ -1,5 +1,5 @@
 const authService = require('../services/auth.service');
-const logger = require('../config/logger');
+const logger = require('../../utils/logger.js');
 
 // Login patient
 exports.loginPatient = async (req, res) => {

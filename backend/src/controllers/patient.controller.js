@@ -2,7 +2,7 @@ const { getContract } = require('../fabric/network');
 const logger = require('../../utils/logger');
 const authService = require('../services/auth.service');
 
-// Register a new patient (ADD PASSWORD SUPPORT)
+// Register a new patient
 exports.registerPatient = async (req, res) => {
     try {
         const {
@@ -11,14 +11,14 @@ exports.registerPatient = async (req, res) => {
             phone,
             aadharNumber,
             fingerprintTemplateID,
-            password  // NEW: Add password
+            password
         } = req.body;
 
         // Validate required fields
         if (!name || !dateOfBirth || !phone || !aadharNumber || !password) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'Missing required fields: name, dateOfBirth, phone, aadharNumber, password'
             });
         }
 
@@ -41,12 +41,15 @@ exports.registerPatient = async (req, res) => {
             fingerprintTemplateID?.toString() || '0'
         );
 
-        // Register in auth system with password
-        await authService.registerPatient(patientID, password, {
+        // ✅ FIXED: Register in PostgreSQL with correct parameter format
+        await authService.registerPatient({
+            patientId: patientID,  // Note: patientId not patientID
             name,
             dateOfBirth,
             phone,
-            aadharNumber
+            aadharNumber,
+            password,
+            fingerprintTemplateId: fingerprintTemplateID || null
         });
 
         logger.info(`Patient registered successfully: ${patientID}`);

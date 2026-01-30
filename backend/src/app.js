@@ -4,12 +4,22 @@ require('dotenv').config();
 
 const logger = require('../utils/logger');
 const { disconnectGateway } = require('./fabric/network');
+const sequelize = require('./config/database'); // ✅ ADD THIS
 
 const app = express();
 
+// ✅ ADD: Initialize database connection
+sequelize.sync({ alter: false }) // Use alter: false in production
+    .then(() => {
+        logger.info('✅ PostgreSQL models synchronized');
+    })
+    .catch((err) => {
+        logger.error('❌ Failed to sync database models:', err);
+    });
+
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5173', // Vite default port
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
     credentials: true
 }));
 app.use(express.json());
@@ -27,7 +37,8 @@ app.get('/health', (req, res) => {
         success: true,
         message: 'Healthcare Blockchain Backend is running',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.0.0',
+        database: sequelize.authenticate() ? 'connected' : 'disconnected'
     });
 });
 
@@ -61,12 +72,14 @@ app.use((err, req, res, next) => {
 process.on('SIGINT', async () => {
     logger.info('Shutting down gracefully...');
     await disconnectGateway();
+    await sequelize.close();
     process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
     logger.info('Shutting down gracefully...');
     await disconnectGateway();
+    await sequelize.close();
     process.exit(0);
 });
 

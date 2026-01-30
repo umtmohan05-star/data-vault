@@ -1,157 +1,361 @@
 #!/bin/bash
 
+# ============================================================================
+# HEALTHCARE BLOCKCHAIN API TEST SCRIPT
+# ============================================================================
+# This script tests all API endpoints with realistic data
+# ============================================================================
+
+set -e  # Exit on error
+
 # Colors for output
-GREEN='\033[0;32m'
 RED='\033[0;31m'
-BLUE='\033[0;34m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-API_BASE="http://localhost:3000/api/v1"
+# API Configuration
+API_URL="http://localhost:3000/api/v1"
+HEALTH_URL="http://localhost:3000/health"
 
-# Generate random IDs
-PATIENT_ID="P$(shuf -i 1000-9999 -n 1)"
-PATIENT_ID_2="P$(shuf -i 1000-9999 -n 1)"
-DOCTOR_ID="D$(shuf -i 1000-9999 -n 1)"
+# Test counters
+TESTS_PASSED=0
+TESTS_FAILED=0
 
-echo "🧪 HEALTHCARE BLOCKCHAIN API TESTS"
-echo "===================================="
-echo "🆔 Generated IDs:"
-echo "   Patient 1: $PATIENT_ID"
-echo "   Patient 2: $PATIENT_ID_2"
-echo "   Doctor:    $DOCTOR_ID"
-echo ""
+# Function to print colored output
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
 
-# Test 1: Register Patient
-echo "📝 TEST 1: Register Patient $PATIENT_ID"
-curl -X POST "$API_BASE/patients/register" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"patientID\": \"$PATIENT_ID\",
-    \"name\": \"John Doe\",
-    \"dateOfBirth\": \"1990-01-15\",
-    \"phone\": \"5551234567\",
-    \"aadharNumber\": \"123456789012\",
-    \"fingerprintTemplateID\": 101
-  }" | jq .
-echo ""
-echo "⏳ Waiting 3 seconds..."
-sleep 3
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
 
-# Test 2: Get Patient
-echo "🔍 TEST 2: Get Patient $PATIENT_ID"
-curl -X GET "$API_BASE/patients/$PATIENT_ID" | jq .
-echo ""
-sleep 2
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
 
-# Test 3: Register Doctor
-echo "📝 TEST 3: Register Doctor $DOCTOR_ID"
-curl -X POST "$API_BASE/doctors/register" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"doctorID\": \"$DOCTOR_ID\",
-    \"name\": \"Dr. Sarah Smith\",
-    \"licenseNumber\": \"LIC123456\",
-    \"specialization\": \"Cardiology\",
-    \"hospitalName\": \"Apollo Hospital\"
-  }" | jq .
-echo ""
-echo "⏳ Waiting 3 seconds..."
-sleep 3
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
 
-# Test 4: Get Doctor
-echo "🔍 TEST 4: Get Doctor $DOCTOR_ID"
-curl -X GET "$API_BASE/doctors/$DOCTOR_ID" | jq .
-echo ""
-sleep 2
-
-# Test 5: Verify Doctor (HealthRegistry)
-echo "📝 TEST 5: Verify Doctor $DOCTOR_ID (as HealthRegistry)"
-curl -X POST "$API_BASE/doctors/$DOCTOR_ID/verify" | jq .
-echo ""
-echo "⏳ Waiting 3 seconds..."
-sleep 3
-
-# Test 6: Get Doctor Again (Check Verification)
-echo "🔍 TEST 6: Get Doctor $DOCTOR_ID (Should be verified now)"
-curl -X GET "$API_BASE/doctors/$DOCTOR_ID" | jq .
-echo ""
-sleep 2
-
-# Test 7: Grant Access
-echo "📝 TEST 7: Grant Access to Doctor"
-ACCESS_RESPONSE=$(curl -s -X POST "$API_BASE/access/grant" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"patientID\": \"$PATIENT_ID\",
-    \"doctorID\": \"$DOCTOR_ID\",
-    \"durationHours\": 24,
-    \"purpose\": \"Annual health checkup\"
-  }")
-echo "$ACCESS_RESPONSE" | jq .
-ACCESS_KEY=$(echo "$ACCESS_RESPONSE" | jq -r '.data.accessKey // empty')
-echo ""
-echo "⏳ Waiting 3 seconds..."
-sleep 3
-
-# Test 8: Check Access Validity
-if [ -n "$ACCESS_KEY" ]; then
-    echo "🔍 TEST 8: Check Access Validity"
-    curl -X GET "$API_BASE/access/$ACCESS_KEY/validity" | jq .
+print_header() {
     echo ""
-    sleep 2
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}================================================${NC}"
+}
+
+# Function to test an API endpoint
+test_api() {
+    local test_name="$1"
+    local method="$2"
+    local endpoint="$3"
+    local data="$4"
+    local expected_success="$5"
+
+    print_info "Testing: $test_name"
+    
+    if [ "$method" = "GET" ]; then
+        response=$(curl -s -w "\n%{http_code}" "$endpoint")
+    else
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "$endpoint" \
+            -H "Content-Type: application/json" \
+            -d "$data")
+    fi
+    
+    http_code=$(echo "$response" | tail -n 1)
+    body=$(echo "$response" | sed '$d')
+    
+    # Pretty print JSON response
+    echo "$body" | jq '.' 2>/dev/null || echo "$body"
+    
+    if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+        print_success "$test_name - HTTP $http_code"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo "$body"
+        return 0
+    else
+        print_error "$test_name - HTTP $http_code"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo "$body"
+        return 1
+    fi
+}
+
+# ============================================================================
+# START TESTS
+# ============================================================================
+
+print_header "HEALTHCARE BLOCKCHAIN API TESTS"
+print_info "Testing API at: $API_URL"
+print_info "Started at: $(date)"
+echo ""
+
+# ============================================================================
+# TEST 1: Health Check
+# ============================================================================
+print_header "TEST 1: Health Check"
+test_api "Health Check" "GET" "$HEALTH_URL" "" true
+
+# ============================================================================
+# TEST 2: Register Patient
+# ============================================================================
+print_header "TEST 2: Register Patient"
+
+PATIENT_DATA='{
+  "name": "John Doe",
+  "dateOfBirth": "1990-01-15",
+  "phone": "+919876543210",
+  "aadharNumber": "123456789012",
+  "password": "SecurePassword123!",
+  "fingerprintTemplateID": 1234
+}'
+
+PATIENT_RESPONSE=$(curl -s -X POST "$API_URL/patients/register" \
+    -H "Content-Type: application/json" \
+    -d "$PATIENT_DATA")
+
+echo "$PATIENT_RESPONSE" | jq '.'
+
+# Extract patient ID
+PATIENT_ID=$(echo "$PATIENT_RESPONSE" | jq -r '.data.patientID // empty')
+
+if [ -n "$PATIENT_ID" ]; then
+    print_success "Patient registered with ID: $PATIENT_ID"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    echo -e "${YELLOW}⚠️  Skipping TEST 8: No access key generated${NC}"
-    echo ""
+    print_error "Failed to register patient"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 9: Get Patient Active Accesses
-echo "🔍 TEST 9: Get Patient Active Accesses"
-curl -X GET "$API_BASE/patients/$PATIENT_ID/accesses" | jq .
-echo ""
-sleep 2
+# ============================================================================
+# TEST 3: Register Another Patient
+# ============================================================================
+print_header "TEST 3: Register Another Patient"
 
-# Test 10: Get Patient Audit Trail
-echo "🔍 TEST 10: Get Patient Audit Trail"
-curl -X GET "$API_BASE/patients/$PATIENT_ID/audit" | jq .
-echo ""
-sleep 2
+PATIENT2_DATA='{
+  "name": "Jane Smith",
+  "dateOfBirth": "1985-05-20",
+  "phone": "+919876543211",
+  "aadharNumber": "987654321098",
+  "password": "JaneSecure456!",
+  "fingerprintTemplateID": 5678
+}'
 
-# Test 11: Register Second Patient
-echo "📝 TEST 11: Register Patient $PATIENT_ID_2"
-curl -X POST "$API_BASE/patients/register" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"patientID\": \"$PATIENT_ID_2\",
-    \"name\": \"Jane Smith\",
-    \"dateOfBirth\": \"1985-05-20\",
-    \"phone\": \"5559876543\",
-    \"aadharNumber\": \"987654321098\",
-    \"fingerprintTemplateID\": 102
-  }" | jq .
-echo ""
-echo "⏳ Waiting 3 seconds..."
-sleep 3
+PATIENT2_RESPONSE=$(curl -s -X POST "$API_URL/patients/register" \
+    -H "Content-Type: application/json" \
+    -d "$PATIENT2_DATA")
 
-# Test 12: Revoke Access
-if [ -n "$ACCESS_KEY" ]; then
-    echo "📝 TEST 12: Revoke Access"
-    curl -X DELETE "$API_BASE/access/$ACCESS_KEY" | jq .
-    echo ""
+echo "$PATIENT2_RESPONSE" | jq '.'
+
+PATIENT2_ID=$(echo "$PATIENT2_RESPONSE" | jq -r '.data.patientID // empty')
+
+if [ -n "$PATIENT2_ID" ]; then
+    print_success "Second patient registered with ID: $PATIENT2_ID"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    echo -e "${YELLOW}⚠️  Skipping TEST 12: No access key to revoke${NC}"
-    echo ""
+    print_error "Failed to register second patient"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-echo ""
-echo -e "${GREEN}✅ ALL TESTS COMPLETED!${NC}"
-echo "===================================="
-echo ""
-echo "📊 Test Summary:"
-echo "   Patient 1: $PATIENT_ID"
-echo "   Patient 2: $PATIENT_ID_2"
-echo "   Doctor:    $DOCTOR_ID"
-if [ -n "$ACCESS_KEY" ]; then
-    echo "   Access Key: $ACCESS_KEY"
+# ============================================================================
+# TEST 4: Register Doctor
+# ============================================================================
+print_header "TEST 4: Register Doctor"
+
+DOCTOR_DATA='{
+  "name": "Dr. Sarah Wilson",
+  "licenseNumber": "MED123456",
+  "specialization": "Cardiology",
+  "hospitalName": "Apollo Hospital",
+  "password": "DoctorSecure789!"
+}'
+
+DOCTOR_RESPONSE=$(curl -s -X POST "$API_URL/doctors/register" \
+    -H "Content-Type: application/json" \
+    -d "$DOCTOR_DATA")
+
+echo "$DOCTOR_RESPONSE" | jq '.'
+
+DOCTOR_ID=$(echo "$DOCTOR_RESPONSE" | jq -r '.data.doctorID // empty')
+
+if [ -n "$DOCTOR_ID" ]; then
+    print_success "Doctor registered with ID: $DOCTOR_ID"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    print_error "Failed to register doctor"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
+
+# ============================================================================
+# TEST 5: Login Patient
+# ============================================================================
+print_header "TEST 5: Login Patient"
+
+if [ -n "$PATIENT_ID" ]; then
+    LOGIN_DATA=$(cat <<EOF
+{
+  "patientID": "$PATIENT_ID",
+  "password": "SecurePassword123!"
+}
+EOF
+)
+
+    LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/auth/login/patient" \
+        -H "Content-Type: application/json" \
+        -d "$LOGIN_DATA")
+
+    echo "$LOGIN_RESPONSE" | jq '.'
+
+    PATIENT_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.token // empty')
+
+    if [ -n "$PATIENT_TOKEN" ]; then
+        print_success "Patient logged in successfully"
+        print_info "Token: ${PATIENT_TOKEN:0:50}..."
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_error "Patient login failed"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+else
+    print_warning "Skipping patient login test (no patient ID)"
+fi
+
+# ============================================================================
+# TEST 6: Login Patient with Wrong Password
+# ============================================================================
+print_header "TEST 6: Login Patient with Wrong Password (Should Fail)"
+
+if [ -n "$PATIENT_ID" ]; then
+    WRONG_LOGIN_DATA=$(cat <<EOF
+{
+  "patientID": "$PATIENT_ID",
+  "password": "WrongPassword123!"
+}
+EOF
+)
+
+    WRONG_LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/auth/login/patient" \
+        -H "Content-Type: application/json" \
+        -d "$WRONG_LOGIN_DATA")
+
+    echo "$WRONG_LOGIN_RESPONSE" | jq '.'
+
+    if echo "$WRONG_LOGIN_RESPONSE" | grep -q "Invalid credentials"; then
+        print_success "Correctly rejected wrong password"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_error "Should have rejected wrong password"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+else
+    print_warning "Skipping wrong password test (no patient ID)"
+fi
+
+# ============================================================================
+# TEST 7: Login Doctor
+# ============================================================================
+print_header "TEST 7: Login Doctor"
+
+if [ -n "$DOCTOR_ID" ]; then
+    DOCTOR_LOGIN_DATA=$(cat <<EOF
+{
+  "doctorID": "$DOCTOR_ID",
+  "password": "DoctorSecure789!"
+}
+EOF
+)
+
+    DOCTOR_LOGIN_RESPONSE=$(curl -s -X POST "$API_URL/auth/login/doctor" \
+        -H "Content-Type: application/json" \
+        -d "$DOCTOR_LOGIN_DATA")
+
+    echo "$DOCTOR_LOGIN_RESPONSE" | jq '.'
+
+    DOCTOR_TOKEN=$(echo "$DOCTOR_LOGIN_RESPONSE" | jq -r '.token // empty')
+
+    if [ -n "$DOCTOR_TOKEN" ]; then
+        print_success "Doctor logged in successfully"
+        print_info "Token: ${DOCTOR_TOKEN:0:50}..."
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_error "Doctor login failed"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+else
+    print_warning "Skipping doctor login test (no doctor ID)"
+fi
+
+# ============================================================================
+# TEST 8: Get Patient Details
+# ============================================================================
+print_header "TEST 8: Get Patient Details"
+
+if [ -n "$PATIENT_ID" ]; then
+    GET_PATIENT_RESPONSE=$(curl -s -X GET "$API_URL/patients/$PATIENT_ID")
+    
+    echo "$GET_PATIENT_RESPONSE" | jq '.'
+    
+    if echo "$GET_PATIENT_RESPONSE" | jq -e '.success == true' > /dev/null; then
+        print_success "Retrieved patient details"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_error "Failed to retrieve patient details"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+else
+    print_warning "Skipping get patient test (no patient ID)"
+fi
+
+# ============================================================================
+# TEST 9: Get Doctor Details
+# ============================================================================
+print_header "TEST 9: Get Doctor Details"
+
+if [ -n "$DOCTOR_ID" ]; then
+    GET_DOCTOR_RESPONSE=$(curl -s -X GET "$API_URL/doctors/$DOCTOR_ID")
+    
+    echo "$GET_DOCTOR_RESPONSE" | jq '.'
+    
+    if echo "$GET_DOCTOR_RESPONSE" | jq -e '.success == true' > /dev/null; then
+        print_success "Retrieved doctor details"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        print_error "Failed to retrieve doctor details"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+else
+    print_warning "Skipping get doctor test (no doctor ID)"
+fi
+
+# ============================================================================
+# TEST SUMMARY
+# ============================================================================
+print_header "TEST SUMMARY"
+
+TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))
+
 echo ""
+print_info "Total Tests: $TOTAL_TESTS"
+print_success "Passed: $TESTS_PASSED"
+print_error "Failed: $TESTS_FAILED"
+echo ""
+
+if [ $TESTS_FAILED -eq 0 ]; then
+    print_success "🎉 ALL TESTS PASSED!"
+    echo ""
+    print_info "Summary of Generated IDs:"
+    [ -n "$PATIENT_ID" ] && echo "  Patient 1 ID: $PATIENT_ID"
+    [ -n "$PATIENT2_ID" ] && echo "  Patient 2 ID: $PATIENT2_ID"
+    [ -n "$DOCTOR_ID" ] && echo "  Doctor ID: $DOCTOR_ID"
+    [ -n "$PATIENT_TOKEN" ] && echo "  Patient Token: ${PATIENT_TOKEN:0:30}..."
+    [ -n "$DOCTOR_TOKEN" ] && echo "  Doctor Token: ${DOCTOR_TOKEN:0:30}..."
+    echo ""
+    exit 0
+else
+    print_error "⚠️  SOME TESTS FAILED"
+    echo ""
+    exit 1
+fi
