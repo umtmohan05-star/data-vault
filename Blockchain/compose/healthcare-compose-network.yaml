@@ -6,7 +6,6 @@
 # - 4 Peers (2 Hospital Apollo + 2 Audit Org) for high availability
 # ============================================================================
 
-version: '3.7'
 
 volumes:
   orderer1.healthregistry.healthcare.com:
@@ -288,7 +287,6 @@ services:
     volumes:
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../config/core-political-party.yaml:/etc/hyperledger/fabric/core.yaml
       - ../chaincode/external-builder:/builders/external:ro
       - peer0.hospitalapollo.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
@@ -341,7 +339,6 @@ services:
     volumes:
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../config/core-political-party.yaml:/etc/hyperledger/fabric/core.yaml
       - ../chaincode/external-builder:/builders/external:ro
       - peer1.hospitalapollo.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
@@ -394,7 +391,6 @@ services:
     volumes:
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../config/core-audit-authority.yaml:/etc/hyperledger/fabric/core.yaml
       - ../chaincode/external-builder:/builders/external:ro
       - peer0.auditorg.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock
@@ -447,7 +443,6 @@ services:
     volumes:
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
       - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
-      - ../config/core-audit-authority.yaml:/etc/hyperledger/fabric/core.yaml
       - ../chaincode/external-builder:/builders/external:ro
       - peer1.auditorg.healthcare.com:/var/hyperledger/production
       - /var/run/docker.sock:/host/var/run/docker.sock

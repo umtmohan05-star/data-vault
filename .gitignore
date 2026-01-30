@@ -2,3 +2,7 @@
 Blockchain/bin
 Blockchain/compose/organizations
 Blockchain/organizations/fabric-ca
+*.log
+*.tar.gz
+Blockchain/network/healthcare-contract.tar.gz
+Blockchain/network/channel-artifacts
