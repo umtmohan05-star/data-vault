@@ -1,0 +1,460 @@
+# ============================================================================
+# E-VOTING PHASE 1 FULL: 3 ORDERERS + 4 PEERS (PRODUCTION-READY)
+# ============================================================================
+# Architecture:
+# - 3 Orderers (RAFT consensus) for fault tolerance
+# - 4 Peers (2 Political Party + 2 Audit Authority) for high availability
+# ============================================================================
+
+version: '3.7'
+
+volumes:
+  orderer1.healthregistry.healthcare.com:
+  orderer2.healthregistry.healthcare.com:
+  orderer3.healthregistry.healthcare.com:
+  orderer4.healthregistry.healthcare.com:
+  peer0.hospitalapollo.healthcare.com:
+  peer1.hospitalapollo.healthcare.com:
+  peer0.auditorg.healthcare.com:
+  peer1.auditorg.healthcare.com:
+  redis-data:
+
+networks:
+  healthcare:
+    name: healthcare_network
+
+services:
+  # ===================================================================
+  # REDIS CACHE - For duplicate vote prevention and vote counting
+  # ===================================================================
+  redis.healthcare.com:
+    image: redis:7-alpine
+    container_name: redis.healthcare.com
+    hostname: redis.healthcare.com
+    restart: unless-stopped
+    networks:
+      - healthcare
+    ports:
+      - "6379:6379"  # Expose for backend access
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - TZ=Asia/Kolkata
+  healthcare-chaincode:
+    container_name: healthcare-chaincode
+    build:
+      context: ../chaincode/healthcare
+      dockerfile: Dockerfile
+    working_dir: /chaincode
+    environment:
+      - CHAINCODE_SERVER_ADDRESS=0.0.0.0:7052
+      - CORE_CHAINCODE_ID_NAME=healthcare-contract_1.0:f254d60882aadecc13fbf31c0e3d2a5a473476a708e2cf9e5df14b41554a7617
+      - CORE_CHAINCODE_LOGGING_LEVEL=info
+    ports:
+      - "7052:7052"
+    networks:
+      healthcare:
+        aliases:
+          - healthcare-chaincode
+
+  # ===========================================================================
+  # ORDERER 1 - Primary RAFT Leader Candidate
+  # ===========================================================================
+  orderer1.healthregistry.healthcare.com:
+    container_name: orderer1.healthregistry.healthcare.com
+    image: hyperledger/fabric-orderer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - ORDERER_GENERAL_CAPABILITIES_V3_0=true
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=ElectionCommissionMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer1.healthregistry.healthcare.com:9443
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer1.healthregistry.healthcare.com/msp:/var/hyperledger/orderer/msp
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer1.healthregistry.healthcare.com/tls:/var/hyperledger/orderer/tls
+      - orderer1.healthregistry.healthcare.com:/var/hyperledger/production/orderer
+    ports:
+      - 7050:7050
+      - 7053:7053
+      - 9443:9443
+    networks:
+      - healthcare
+
+  # ===========================================================================
+  # ORDERER 2 - RAFT Follower
+  # ===========================================================================
+  orderer2.healthregistry.healthcare.com:
+    container_name: orderer2.healthregistry.healthcare.com
+    image: hyperledger/fabric-orderer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_CAPABILITIES_V3_0=true
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=8050
+      - ORDERER_GENERAL_LOCALMSPID=ElectionCommissionMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:8053
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer2.healthregistry.healthcare.com:9444
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer2.healthregistry.healthcare.com/msp:/var/hyperledger/orderer/msp
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer2.healthregistry.healthcare.com/tls:/var/hyperledger/orderer/tls
+      - orderer2.healthregistry.healthcare.com:/var/hyperledger/production/orderer
+    ports:
+      - 8050:8050
+      - 8053:8053
+      - 9444:9444
+    networks:
+      - healthcare
+
+  # ===========================================================================
+  # ORDERER 3 - RAFT Follower
+  # ===========================================================================
+  orderer3.healthregistry.healthcare.com:
+    container_name: orderer3.healthregistry.healthcare.com
+    image: hyperledger/fabric-orderer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_CAPABILITIES_V3_0=true
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=9050
+      - ORDERER_GENERAL_LOCALMSPID=ElectionCommissionMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9053
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer3.healthregistry.healthcare.com:9445
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer3.healthregistry.healthcare.com/msp:/var/hyperledger/orderer/msp
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer3.healthregistry.healthcare.com/tls:/var/hyperledger/orderer/tls
+      - orderer3.healthregistry.healthcare.com:/var/hyperledger/production/orderer
+    ports:
+      - 9050:9050
+      - 9053:9053
+      - 9445:9445
+    networks:
+      - healthcare
+    # ===========================================================================
+  # ORDERER 4 - SmartBFT Node (NEW for Fabric 3.0)
+  # ===========================================================================
+  orderer4.healthregistry.healthcare.com:
+    container_name: orderer4.healthregistry.healthcare.com
+    image: hyperledger/fabric-orderer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_CAPABILITIES_V3_0=true
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=10050
+      - ORDERER_GENERAL_LOCALMSPID=ElectionCommissionMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:10053
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_OPERATIONS_LISTENADDRESS=orderer4.healthregistry.healthcare.com:9446
+      - ORDERER_METRICS_PROVIDER=prometheus
+    working_dir: /root
+    command: orderer
+    volumes:
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer4.healthregistry.healthcare.com/msp:/var/hyperledger/orderer/msp
+      - ./organizations/ordererOrganizations/healthregistry.healthcare.com/orderers/orderer4.healthregistry.healthcare.com/tls:/var/hyperledger/orderer/tls
+      - orderer4.healthregistry.healthcare.com:/var/hyperledger/production/orderer
+    ports:
+      - 10050:10050
+      - 10053:10053
+      - 9446:9446
+    networks:
+      - healthcare
+
+
+  # ===========================================================================
+  # PEER 0 - Political Party (Primary)
+  # ===========================================================================
+  peer0.hospitalapollo.healthcare.com:
+    container_name: peer0.hospitalapollo.healthcare.com
+    image: hyperledger/fabric-peer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - CORE_PEER_CAPABILITIES_V3_0=true
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.hospitalapollo.healthcare.com
+      - CORE_PEER_ADDRESS=peer0.hospitalapollo.healthcare.com:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.hospitalapollo.healthcare.com:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.hospitalapollo.healthcare.com:8051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.hospitalapollo.healthcare.com:7051
+      - CORE_PEER_LOCALMSPID=PoliticalPartyMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer0.hospitalapollo.healthcare.com:7446
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0hospitalapollo"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_CHAINCODE_MODE=net
+      - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0hospitalapollo"}
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
+      - CORE_PEER_DISCOVERY_ENABLED=true
+      - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWED=true
+    volumes:
+      - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
+      - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer0.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
+      - ../config/core-political-party.yaml:/etc/hyperledger/fabric/core.yaml
+      - ../chaincode/external-builder:/builders/external:ro
+      - peer0.hospitalapollo.healthcare.com:/var/hyperledger/production
+      - /var/run/docker.sock:/host/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 7051:7051
+      - 7446:7446
+    networks:
+      - healthcare
+
+  # ===========================================================================
+  # PEER 1 - Political Party (Backup)
+  # ===========================================================================
+  peer1.hospitalapollo.healthcare.com:
+    container_name: peer1.hospitalapollo.healthcare.com
+    image: hyperledger/fabric-peer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - CORE_PEER_CAPABILITIES_V3_0=true
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer1.hospitalapollo.healthcare.com
+      - CORE_PEER_ADDRESS=peer1.hospitalapollo.healthcare.com:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.hospitalapollo.healthcare.com:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.hospitalapollo.healthcare.com:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.hospitalapollo.healthcare.com:8051
+      - CORE_PEER_LOCALMSPID=PoliticalPartyMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.hospitalapollo.healthcare.com:9447
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1hospitalapollo"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_CHAINCODE_MODE=net
+      - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1hospitalapollo"}
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
+      - CORE_PEER_DISCOVERY_ENABLED=true
+      - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWED=true
+    volumes:
+      - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/msp:/etc/hyperledger/fabric/msp
+      - ./organizations/peerOrganizations/hospitalapollo.healthcare.com/peers/peer1.hospitalapollo.healthcare.com/tls:/etc/hyperledger/fabric/tls
+      - ../config/core-political-party.yaml:/etc/hyperledger/fabric/core.yaml
+      - ../chaincode/external-builder:/builders/external:ro
+      - peer1.hospitalapollo.healthcare.com:/var/hyperledger/production
+      - /var/run/docker.sock:/host/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 8051:8051
+      - 9447:9447
+    networks:
+      - healthcare
+
+  # ===========================================================================
+  # PEER 0 - Audit Authority (Primary)
+  # ===========================================================================
+  peer0.auditorg.healthcare.com:
+    container_name: peer0.auditorg.healthcare.com
+    image: hyperledger/fabric-peer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - CORE_PEER_CAPABILITIES_V3_0=true
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer0.auditorg.healthcare.com
+      - CORE_PEER_ADDRESS=peer0.auditorg.healthcare.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.auditorg.healthcare.com:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.auditorg.healthcare.com:10051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.auditorg.healthcare.com:9051
+      - CORE_PEER_LOCALMSPID=AuditAuthorityMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer0.auditorg.healthcare.com:9448
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0auditorg"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_CHAINCODE_MODE=net
+      - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer0auditorg"}
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
+      - CORE_PEER_DISCOVERY_ENABLED=true
+      - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWED=true
+    volumes:
+      - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
+      - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer0.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
+      - ../config/core-audit-authority.yaml:/etc/hyperledger/fabric/core.yaml
+      - ../chaincode/external-builder:/builders/external:ro
+      - peer0.auditorg.healthcare.com:/var/hyperledger/production
+      - /var/run/docker.sock:/host/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 9051:9051
+      - 9448:9448
+    networks:
+      - healthcare
+
+  # ===========================================================================
+  # PEER 1 - Audit Authority (Backup)
+  # ===========================================================================
+  peer1.auditorg.healthcare.com:
+    container_name: peer1.auditorg.healthcare.com
+    image: hyperledger/fabric-peer:3.0.0
+    labels:
+      service: hyperledger-fabric
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric
+      - CORE_PEER_CAPABILITIES_V3_0=true
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=false
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      - CORE_PEER_ID=peer1.auditorg.healthcare.com
+      - CORE_PEER_ADDRESS=peer1.auditorg.healthcare.com:10051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:10051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.auditorg.healthcare.com:10052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:10052
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.auditorg.healthcare.com:9051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.auditorg.healthcare.com:10051
+      - CORE_PEER_LOCALMSPID=AuditAuthorityMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_OPERATIONS_LISTENADDRESS=peer1.auditorg.healthcare.com:9449
+      - CORE_METRICS_PROVIDER=prometheus
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1auditorg"}
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
+      - CORE_CHAINCODE_MODE=net
+      - CORE_CHAINCODE_BUILDER=hyperledger/fabric-ccenv:latest
+      - CORE_CHAINCODE_EXTERNALBUILDERS=[{"name":"external","path":"/builders/external","propagateEnvironment":["CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG"]}]
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"peer1auditorg"}
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=healthcare_network
+      - CORE_PEER_DISCOVERY_ENABLED=true
+      - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWED=true
+    volumes:
+      - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/msp:/etc/hyperledger/fabric/msp
+      - ./organizations/peerOrganizations/auditorg.healthcare.com/peers/peer1.auditorg.healthcare.com/tls:/etc/hyperledger/fabric/tls
+      - ../config/core-audit-authority.yaml:/etc/hyperledger/fabric/core.yaml
+      - ../chaincode/external-builder:/builders/external:ro
+      - peer1.auditorg.healthcare.com:/var/hyperledger/production
+      - /var/run/docker.sock:/host/var/run/docker.sock
+    working_dir: /root
+    command: peer node start
+    ports:
+      - 10051:10051
+      - 9449:9449
+    networks:
+      - healthcare
