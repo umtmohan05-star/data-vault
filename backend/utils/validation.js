@@ -1,41 +1,40 @@
 const Joi = require('joi');
+const logger = require('./logger');
 
+// Validation schemas
 const schemas = {
-    // ✅ FIXED: Removed patientID (auto-generated), added password, made fingerprintTemplateID optional
     registerPatient: Joi.object({
-        name: Joi.string().required().min(2).max(100),
-        dateOfBirth: Joi.string().required().pattern(/^\d{4}-\d{2}-\d{2}$/),
-        phone: Joi.string().required().min(10).max(20),
-        aadharNumber: Joi.string().required().length(12).pattern(/^[0-9]+$/),
-        password: Joi.string().required().min(8).max(100),
-        fingerprintTemplateID: Joi.number().optional().integer().positive()
+        name: Joi.string().required(),
+        dateOfBirth: Joi.string().required(),
+        phone: Joi.string().required(),
+        aadharNumber: Joi.string().length(12).required(),
+        password: Joi.string().min(8).required(),
+        fingerprintTemplateID: Joi.number().required()
     }),
 
-    // ✅ FIXED: Removed doctorID (auto-generated), added password
     registerDoctor: Joi.object({
-        name: Joi.string().required().min(2).max(100),
-        licenseNumber: Joi.string().required().min(5).max(50),
-        specialization: Joi.string().required().min(2).max(100),
-        hospitalName: Joi.string().required().min(2).max(200),
-        password: Joi.string().required().min(8).max(100)
+        name: Joi.string().required(),
+        licenseNumber: Joi.string().required(),
+        specialization: Joi.string().required(),
+        hospitalName: Joi.string().required(),
+        password: Joi.string().min(8).required()
     }),
 
-    // Login validation schemas
     loginPatient: Joi.object({
-        patientID: Joi.string().required().min(3).max(50),
+        patientId: Joi.string().required(), // This is what we expect
         password: Joi.string().required()
     }),
 
     loginDoctor: Joi.object({
-        doctorID: Joi.string().required().min(3).max(50),
+        doctorId: Joi.string().required(),
         password: Joi.string().required()
     }),
 
     grantAccess: Joi.object({
         patientID: Joi.string().required(),
         doctorID: Joi.string().required(),
-        durationHours: Joi.number().required().integer().min(1).max(720),
-        purpose: Joi.string().required().min(5).max(500)
+        durationHours: Joi.number().integer().min(1).required(),
+        purpose: Joi.string().required()
     }),
 
     revokeAccess: Joi.object({
@@ -43,18 +42,43 @@ const schemas = {
     })
 };
 
-function validate(schema) {
+// Validation middleware
+const validate = (schemaName) => {
     return (req, res, next) => {
-        const { error } = schemas[schema].validate(req.body);
+        const schema = schemas[schemaName];
+        
+        if (!schema) {
+            logger.error(`Validation schema '${schemaName}' not found`);
+            return res.status(500).json({
+                success: false,
+                error: 'Internal validation error'
+            });
+        }
+
+        const { error, value } = schema.validate(req.body, {
+            abortEarly: false, // Get all errors, not just the first
+            stripUnknown: true  // Remove unknown fields
+        });
+
         if (error) {
+            const errorDetails = error.details.map(detail => ({
+                field: detail.path.join('.'),
+                message: detail.message
+            }));
+
+            logger.error(`Validation failed for ${schemaName}:`, errorDetails);
+
             return res.status(400).json({
                 success: false,
                 error: 'Validation error',
-                details: error.details.map(d => d.message)
+                details: errorDetails
             });
         }
+
+        // Replace req.body with validated and sanitized value
+        req.body = value;
         next();
     };
-}
+};
 
-module.exports = { validate, schemas };
+module.exports = { validate };

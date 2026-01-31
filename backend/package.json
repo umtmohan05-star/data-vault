@@ -7,6 +7,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "setup": "node scripts/setup-all-admins.js",
+    "cleanup": "node scripts/cleanup-database.js",
     "enroll": "node scripts/enrollAdmin.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

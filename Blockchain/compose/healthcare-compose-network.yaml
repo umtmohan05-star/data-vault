@@ -83,7 +83,7 @@ services:
     working_dir: /chaincode
     environment:
       - CHAINCODE_SERVER_ADDRESS=0.0.0.0:7052
-      - CORE_CHAINCODE_ID_NAME=healthcare-contract_1.0:2303f05a247de1cd4a7e83682e8ef405a2cd3827762ea269b3ada9b81a9ae1b8
+      - CORE_CHAINCODE_ID_NAME=healthcare-contract_1.0:b588b3be159f1a4fc8bfdb0c4e2718f1fd9659ff18cc8f32798a53b573d83600
       - CORE_CHAINCODE_LOGGING_LEVEL=info
     ports:
       - "7052:7052"

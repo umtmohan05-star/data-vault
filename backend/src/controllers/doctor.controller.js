@@ -5,31 +5,14 @@ const authService = require('../services/auth.service');
 // Register a new doctor
 exports.registerDoctor = async (req, res) => {
     try {
-        const {
-            name,
-            licenseNumber,
-            specialization,
-            hospitalName,
-            password
-        } = req.body;
-
-        // Validate required fields
-        if (!name || !licenseNumber || !specialization || !hospitalName || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: name, licenseNumber, specialization, hospitalName, password'
-            });
-        }
+        const { name, licenseNumber, specialization, hospitalName, password } = req.body;
 
         logger.info('Registering new doctor...');
 
-        // Generate unique doctor ID
         const doctorID = `D${Math.floor(1000 + Math.random() * 9000)}`;
 
-        // Get contract
-        const { contract } = await getContract('hospitalApolloAdmin');
-
         // Register on blockchain
+        const { contract } = await getContract('hospitalApolloAdmin');
         await contract.submitTransaction(
             'RegisterDoctor',
             doctorID,
@@ -39,9 +22,9 @@ exports.registerDoctor = async (req, res) => {
             hospitalName
         );
 
-        // ✅ FIXED: Register in PostgreSQL with correct parameter format
+        // Register in PostgreSQL
         await authService.registerDoctor({
-            doctorId: doctorID,  // Note: doctorId not doctorID
+            doctorId: doctorID,
             name,
             licenseNumber,
             specialization,
@@ -67,20 +50,45 @@ exports.registerDoctor = async (req, res) => {
     }
 };
 
-// Get doctor details
+// ✅ NEW: Verify a doctor
+exports.verifyDoctor = async (req, res) => {
+    try {
+        const { doctorID } = req.params;
+
+        logger.info(`Verifying doctor: ${doctorID}`);
+
+        // Connect using AuditOrgAdmin identity (only AuditOrg can verify)
+        const { contract } = await getContract('auditOrgAdmin');
+        
+        await contract.submitTransaction('VerifyDoctor', doctorID);
+
+        logger.info(`Doctor verified successfully: ${doctorID}`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Doctor verified successfully',
+            data: { doctorID, verified: true }
+        });
+
+    } catch (error) {
+        logger.error(`Failed to verify doctor: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to verify doctor',
+            details: error.message
+        });
+    }
+};
+
+// Get doctor by ID
 exports.getDoctor = async (req, res) => {
     try {
         const { doctorID } = req.params;
 
         logger.info(`Fetching doctor: ${doctorID}`);
 
-        const { contract } = await getContract('admin');
-
-        const result = await contract.evaluateTransaction(
-            'GetDoctor',
-            doctorID
-        );
-
+        const { contract } = await getContract('hospitalApolloAdmin');
+        const result = await contract.evaluateTransaction('GetDoctor', doctorID);
         const doctor = JSON.parse(result.toString());
 
         res.status(200).json({
@@ -107,65 +115,30 @@ exports.getDoctor = async (req, res) => {
     }
 };
 
-// Get doctor's access history
+// Get doctor access history
 exports.getDoctorAccessHistory = async (req, res) => {
     try {
         const { doctorID } = req.params;
 
         logger.info(`Fetching access history for doctor: ${doctorID}`);
 
-        const { contract } = await getContract('admin');
-
-        const result = await contract.evaluateTransaction(
-            'GetDoctorAccessHistory',
-            doctorID
-        );
-
-        const accessHistory = JSON.parse(result.toString());
+        const { contract } = await getContract('auditOrgAdmin');
+        const result = await contract.evaluateTransaction('GetAuditTrail', doctorID);
+        
+        const history = JSON.parse(result.toString());
 
         res.status(200).json({
             success: true,
-            data: accessHistory,
-            count: accessHistory.length
+            data: history,
+            count: history.length
         });
 
     } catch (error) {
-        logger.error(`Failed to get doctor access history: ${error.message}`);
+        logger.error(`Failed to get doctor history: ${error.message}`);
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve access history',
             details: error.message
         });
-    }
-};
-
-// Verify a doctor (only AuditOrg)
-exports.verifyDoctor = async (req, res) => {
-    try {
-        const { doctorID } = req.params;
-
-        if (!doctorID) {
-            return res.status(400).json({ success: false, error: 'Missing doctorID parameter' });
-        }
-
-        logger.info(`Verifying doctor: ${doctorID}`);
-
-        // Use the AuditOrg admin identity as the chaincode enforces that only AuditOrgMSP can verify
-        const { contract } = await getContract('auditOrgAdmin');
-
-        await contract.submitTransaction('VerifyDoctor', doctorID);
-
-        logger.info(`Doctor verified successfully: ${doctorID}`);
-
-        res.status(200).json({ success: true, message: 'Doctor verified successfully' });
-    } catch (error) {
-        logger.error(`Failed to verify doctor: ${error.message}`);
-        if (error.message.includes('does not exist')) {
-            return res.status(404).json({ success: false, error: 'Doctor not found', details: error.message });
-        }
-        if (error.message.includes('only AuditOrg')) {
-            return res.status(403).json({ success: false, error: 'Forbidden', details: error.message });
-        }
-        res.status(500).json({ success: false, error: 'Failed to verify doctor', details: error.message });
     }
 };

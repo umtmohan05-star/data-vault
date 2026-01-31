@@ -1,137 +1,182 @@
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Patient = require('../models/Patient');
-const Doctor = require('../models/Doctor');
+const { Patient } = require('../models/Patient');
+const { Doctor } = require('../models/Doctor');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '24h';
+// Generate JWT token
+const generateToken = (payload, expiresIn = '24h') => {
+    return jwt.sign(payload, process.env.JWT_SECRET || 'your-secret-key', {
+        expiresIn
+    });
+};
 
-class AuthService {
-    // Register patient
-    async registerPatient(patientData) {
-        const { patientId, name, dateOfBirth, phone, aadharNumber, password } = patientData;
+// Register a new patient
+exports.registerPatient = async (patientData) => {
+    const { patientId, name, dateOfBirth, phone, aadharNumber, password, fingerprintTemplateId } = patientData;
 
-        // Check if patient already exists
-        const existing = await Patient.findByPk(patientId);
-        if (existing) {
-            throw new Error('Patient ID already exists');
-        }
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
 
-        // Create patient (password will be auto-hashed by beforeCreate hook)
-        const patient = await Patient.create({
-            patientId,
-            name,
-            dateOfBirth,
-            phone,
-            aadharNumber,
-            passwordHash: password, // Will be hashed automatically
-            fingerprintTemplateId: patientData.fingerprintTemplateId || null
-        });
+    // Create patient in database
+    const patient = await Patient.create({
+        patientId,
+        name,
+        dateOfBirth,
+        phone,
+        aadharNumber,
+        passwordHash,
+        fingerprintTemplateId,
+        isActive: true
+    });
 
-        return { patientId: patient.patientId };
+    console.log('✅ Patient created successfully in PostgreSQL');
+
+    return {
+        patientId: patient.patientId,
+        name: patient.name,
+        dateOfBirth: patient.dateOfBirth,
+        phone: patient.phone,
+        aadharNumber: patient.aadharNumber
+    };
+};
+
+// Login patient
+exports.loginPatient = async (patientId, password) => {
+    console.log('🔐 Auth Service: Login attempt for patient:', patientId);
+
+    // Find patient
+    const patient = await Patient.findOne({ where: { patientId } });
+
+    if (!patient) {
+        console.log('❌ Patient not found:', patientId);
+        return {
+            success: false,
+            error: 'Invalid patient ID or password'
+        };
     }
 
-    // Register doctor
-    async registerDoctor(doctorData) {
-        const { doctorId, name, licenseNumber, specialization, hospitalName, password } = doctorData;
+    console.log('✅ Patient found:', patientId);
+    console.log('🔑 Comparing passwords...');
 
-        // Check if doctor already exists
-        const existing = await Doctor.findByPk(doctorId);
-        if (existing) {
-            throw new Error('Doctor ID already exists');
-        }
+    // Compare password
+    const isValidPassword = await bcrypt.compare(password, patient.passwordHash);
+    
+    console.log('🔑 Password valid:', isValidPassword);
 
-        // Create doctor (password will be auto-hashed)
-        const doctor = await Doctor.create({
-            doctorId,
-            name,
-            licenseNumber,
-            specialization,
-            hospitalName,
-            passwordHash: password // Will be hashed automatically
-        });
-
-        return { doctorId: doctor.doctorId };
+    if (!isValidPassword) {
+        console.log('❌ Invalid password for patient:', patientId);
+        return {
+            success: false,
+            error: 'Invalid patient ID or password'
+        };
     }
 
-    // Login patient
-    async loginPatient(patientId, password) {
-        const patient = await Patient.findByPk(patientId);
+    // Update last login
+    await patient.update({ lastLogin: new Date() });
 
-        if (!patient || !patient.isActive) {
-            throw new Error('Invalid credentials');
-        }
+    // Generate token
+    const token = generateToken({
+        patientId: patient.patientId,
+        role: 'patient'
+    });
 
-        const isValid = await patient.comparePassword(password);
-        if (!isValid) {
-            throw new Error('Invalid credentials');
-        }
+    console.log('✅ Login successful, token generated');
 
-        // Update last login
-        await patient.update({ lastLogin: new Date() });
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { patientId: patient.patientId, role: 'patient' },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
-
-        // Return patient data (without password)
-        const patientData = {
+    return {
+        success: true,
+        token,
+        patient: {
             patientId: patient.patientId,
             name: patient.name,
             dateOfBirth: patient.dateOfBirth,
             phone: patient.phone,
             aadharNumber: patient.aadharNumber
-        };
+        }
+    };
+};
 
-        return { token, patient: patientData };
+// Register a new doctor
+exports.registerDoctor = async (doctorData) => {
+    const { doctorId, name, licenseNumber, specialization, hospitalName, password } = doctorData;
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create doctor in database
+    const doctor = await Doctor.create({
+        doctorId,
+        name,
+        licenseNumber,
+        specialization,
+        hospitalName,
+        passwordHash,
+        isVerified: false,
+        isActive: true
+    });
+
+    console.log('✅ Doctor created successfully in PostgreSQL');
+
+    return {
+        doctorId: doctor.doctorId,
+        name: doctor.name,
+        licenseNumber: doctor.licenseNumber,
+        specialization: doctor.specialization,
+        hospitalName: doctor.hospitalName
+    };
+};
+
+// Login doctor
+exports.loginDoctor = async (doctorId, password) => {
+    console.log('🔐 Auth Service: Login attempt for doctor:', doctorId);
+
+    // Find doctor
+    const doctor = await Doctor.findOne({ where: { doctorId } });
+
+    if (!doctor) {
+        console.log('❌ Doctor not found:', doctorId);
+        return {
+            success: false,
+            error: 'Invalid doctor ID or password'
+        };
     }
 
-    // Login doctor
-    async loginDoctor(doctorId, password) {
-        const doctor = await Doctor.findByPk(doctorId);
+    console.log('✅ Doctor found:', doctorId);
+    console.log('🔑 Comparing passwords...');
 
-        if (!doctor || !doctor.isActive) {
-            throw new Error('Invalid credentials');
-        }
+    // Compare password
+    const isValidPassword = await bcrypt.compare(password, doctor.passwordHash);
+    
+    console.log('🔑 Password valid:', isValidPassword);
 
-        const isValid = await doctor.comparePassword(password);
-        if (!isValid) {
-            throw new Error('Invalid credentials');
-        }
+    if (!isValidPassword) {
+        console.log('❌ Invalid password for doctor:', doctorId);
+        return {
+            success: false,
+            error: 'Invalid doctor ID or password'
+        };
+    }
 
-        // Update last login
-        await doctor.update({ lastLogin: new Date() });
+    // Update last login
+    await doctor.update({ lastLogin: new Date() });
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { doctorId: doctor.doctorId, role: 'doctor' },
-            JWT_SECRET,
-            { expiresIn: JWT_EXPIRES_IN }
-        );
+    // Generate token
+    const token = generateToken({
+        doctorId: doctor.doctorId,
+        role: 'doctor'
+    });
 
-        // Return doctor data (without password)
-        const doctorData = {
+    console.log('✅ Login successful, token generated');
+
+    return {
+        success: true,
+        token,
+        doctor: {
             doctorId: doctor.doctorId,
             name: doctor.name,
             licenseNumber: doctor.licenseNumber,
             specialization: doctor.specialization,
             hospitalName: doctor.hospitalName,
             isVerified: doctor.isVerified
-        };
-
-        return { token, doctor: doctorData };
-    }
-
-    // Verify JWT token
-    verifyToken(token) {
-        try {
-            return jwt.verify(token, JWT_SECRET);
-        } catch (error) {
-            throw new Error('Invalid token');
         }
-    }
-}
-
-module.exports = new AuthService();
+    };
+};

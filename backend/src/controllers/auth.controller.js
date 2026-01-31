@@ -1,60 +1,92 @@
 const authService = require('../services/auth.service');
-const logger = require('../../utils/logger.js');
+const logger = require('../../utils/logger');
 
-// Login patient
+// Patient login
 exports.loginPatient = async (req, res) => {
     try {
-        const { patientID, password } = req.body;
+        const { patientId, password } = req.body;
 
-        if (!patientID || !password) {
+        logger.info(`Patient login attempt: ${patientId}`);
+        console.log('📥 Login request body:', { patientId, passwordProvided: !!password });
+
+        if (!patientId || !password) {
+            logger.error('Missing patientId or password');
             return res.status(400).json({
                 success: false,
                 error: 'Patient ID and password are required'
             });
         }
 
-        const result = await authService.loginPatient(patientID, password);
+        const result = await authService.loginPatient(patientId, password);
 
-        res.json({
+        if (!result.success) {
+            logger.error(`Login failed for patient ${patientId}: ${result.error}`);
+            return res.status(401).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        logger.info(`Patient logged in successfully: ${patientId}`);
+
+        res.status(200).json({
             success: true,
             token: result.token,
             patient: result.patient
         });
 
     } catch (error) {
-        logger.error('Patient login error:', error);
-        res.status(401).json({
+        logger.error(`Patient login error: ${error.message}`);
+        console.error('Full error:', error);
+        res.status(500).json({
             success: false,
-            error: error.message || 'Login failed'
+            error: 'Login failed',
+            details: error.message
         });
     }
 };
 
-// Login doctor
+// Doctor login
 exports.loginDoctor = async (req, res) => {
     try {
-        const { doctorID, password } = req.body;
+        const { doctorId, password } = req.body;
 
-        if (!doctorID || !password) {
+        logger.info(`Doctor login attempt: ${doctorId}`);
+        console.log('📥 Login request body:', { doctorId, passwordProvided: !!password });
+
+        if (!doctorId || !password) {
+            logger.error('Missing doctorId or password');
             return res.status(400).json({
                 success: false,
                 error: 'Doctor ID and password are required'
             });
         }
 
-        const result = await authService.loginDoctor(doctorID, password);
+        const result = await authService.loginDoctor(doctorId, password);
 
-        res.json({
+        if (!result.success) {
+            logger.error(`Login failed for doctor ${doctorId}: ${result.error}`);
+            return res.status(401).json({
+                success: false,
+                error: result.error
+            });
+        }
+
+        logger.info(`Doctor logged in successfully: ${doctorId}`);
+
+        res.status(200).json({
             success: true,
             token: result.token,
             doctor: result.doctor
         });
 
     } catch (error) {
-        logger.error('Doctor login error:', error);
-        res.status(401).json({
+        logger.error(`Doctor login error: ${error.message}`);
+        console.error('Full error:', error);
+        res.status(500).json({
             success: false,
-            error: error.message || 'Login failed'
+            error: 'Login failed',
+            details: error.message
         });
     }
 };

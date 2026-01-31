@@ -135,7 +135,23 @@ exports.getActiveAccesses = async (req, res) => {
             patientID
         );
 
-        const accesses = JSON.parse(result.toString());
+        // ✅ FIXED: Handle empty response
+        const resultString = result.toString().trim();
+        let accesses = [];
+        
+        if (resultString && resultString.length > 0) {
+            try {
+                accesses = JSON.parse(resultString);
+            } catch (parseError) {
+                logger.warn(`Failed to parse accesses JSON: ${parseError.message}`);
+                accesses = [];
+            }
+        }
+
+        // ✅ FIXED: Ensure accesses is always an array
+        if (!Array.isArray(accesses)) {
+            accesses = [];
+        }
 
         res.status(200).json({
             success: true,

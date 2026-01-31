@@ -10,27 +10,42 @@ const Doctor = sequelize.define('Doctor', {
     },
     name: {
         type: DataTypes.STRING(255),
-        allowNull: false
+        allowNull: false,
+        validate: {
+            notEmpty: { msg: 'Name cannot be empty' }
+        }
     },
     licenseNumber: {
         type: DataTypes.STRING(50),
         allowNull: false,
         unique: true,
-        field: 'license_number'
+        field: 'license_number',
+        validate: {
+            notEmpty: { msg: 'License number cannot be empty' }
+        }
     },
     specialization: {
         type: DataTypes.STRING(100),
-        allowNull: false
+        allowNull: false,
+        validate: {
+            notEmpty: { msg: 'Specialization cannot be empty' }
+        }
     },
     hospitalName: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'hospital_name'
+        field: 'hospital_name',
+        validate: {
+            notEmpty: { msg: 'Hospital name cannot be empty' }
+        }
     },
     passwordHash: {
         type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'password_hash'
+        field: 'password_hash',
+        validate: {
+            notEmpty: { msg: 'Password hash cannot be empty' }
+        }
     },
     isVerified: {
         type: DataTypes.BOOLEAN,
@@ -39,6 +54,7 @@ const Doctor = sequelize.define('Doctor', {
     },
     verifiedAt: {
         type: DataTypes.DATE,
+        allowNull: true,  // ✅ FIXED: Make it explicitly nullable
         field: 'verified_at'
     },
     isActive: {
@@ -48,14 +64,27 @@ const Doctor = sequelize.define('Doctor', {
     },
     lastLogin: {
         type: DataTypes.DATE,
+        allowNull: true,  // ✅ FIXED: Make it explicitly nullable
         field: 'last_login'
+    },
+    createdAt: {  // ✅ ADDED: Explicit definition
+        type: DataTypes.DATE,
+        field: 'created_at',
+        allowNull: false,
+        defaultValue: DataTypes.NOW
+    },
+    updatedAt: {  // ✅ ADDED: Explicit definition
+        type: DataTypes.DATE,
+        field: 'updated_at',
+        allowNull: false,
+        defaultValue: DataTypes.NOW
     }
 }, {
     tableName: 'doctors',
     underscored: true,
     timestamps: true,
-    createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    createdAt: 'createdAt',  // ✅ FIXED: Use the field name we defined above
+    updatedAt: 'updatedAt',  // ✅ FIXED: Use the field name we defined above
 });
 
 // Hash password before saving

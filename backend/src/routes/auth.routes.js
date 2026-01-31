@@ -1,10 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const authController = require('../controllers/auth.controller');
+const router = require('express').Router();
+const controller = require('../controllers/auth.controller');
 const { validate } = require('../../utils/validation');
 
-// Login routes with validation
-router.post('/login/patient', validate('loginPatient'), authController.loginPatient);
-router.post('/login/doctor', validate('loginDoctor'), authController.loginDoctor);
+// Patient login
+router.post('/login/patient', validate('loginPatient'), controller.loginPatient);
+
+// Doctor login
+router.post('/login/doctor', validate('loginDoctor'), controller.loginDoctor);
 
 module.exports = router;
